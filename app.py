@@ -5,7 +5,7 @@ from flask_debugtoolbar import DebugToolbarExtension
 from sqlalchemy.exc import IntegrityError
 
 from forms import UserAddForm, LoginForm, MessageForm, EditUserForm
-from models import db, connect_db, User, Message
+from models import db, connect_db, User, Message, Likes
 
 CURR_USER_KEY = "curr_user"
 
@@ -306,6 +306,42 @@ def messages_destroy(message_id):
 
 
 ##############################################################################
+# Likes functionality
+
+@app.route('/users/add_like/<int:message_id>', methods=['POST'])
+def like_message(message_id):
+    '''Like/ unlike a message'''
+    if not g.user:
+        flash("Access unauthorized.", "danger")
+        return redirect("/")
+    user_likes = Likes.query.filter(Likes.user_id == g.user.id)
+    matched = user_likes.filter(Likes.message_id == message_id).first()
+    if matched:
+        like= Likes.query.get(matched.id)
+        db.session.delete(like)
+    else:
+        like = Likes(user_id=g.user.id, message_id=message_id)
+        db.session.add(like)
+    db.session.commit()
+    return redirect('/')
+
+@app.route('/users/<int:user_id>/likes')
+def user_likes(user_id):
+    '''List of liked messages for a given user'''
+    if not g.user:
+        flash("Access unauthorized.", "danger")
+        return redirect("/")
+    user = User.query.get_or_404(user_id)
+    likes = [like.id for like in user.likes]
+    messages = (Message
+                .query
+                .filter(Message.id.in_(likes))
+                .order_by(Message.timestamp.desc())
+                .limit(100)
+                .all())
+    return render_template('/users/user_likes.html', messages=messages, user=user)
+
+##############################################################################
 # Homepage and error pages
 
 
@@ -318,6 +354,7 @@ def homepage():
     """
 
     if g.user:
+        likes = [like.id for like in g.user.likes]
         following_ids = [user.id for user in g.user.following]
         messages = (Message
                     .query
@@ -326,7 +363,7 @@ def homepage():
                     .limit(100)
                     .all())
         
-        return render_template('home.html', messages=messages)
+        return render_template('home.html', messages=messages,likes=likes)
 
     else:
         return render_template('home-anon.html')

@@ -7,7 +7,6 @@ from flask_sqlalchemy import SQLAlchemy
 
 bcrypt = Bcrypt()
 db = SQLAlchemy()
-
 def connect_db(app):
     """Connect this database to provided Flask app.
 
@@ -16,7 +15,7 @@ def connect_db(app):
 
     db.app = app
     db.init_app(app)
-    
+
 class Follows(db.Model):
     """Connection of a follower <-> followed_user."""
 
